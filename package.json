@@ -1,0 +1,10 @@
+{
+  "name": "bolao-backend",
+  "version": "1.0.0",
+  "description": "Backend para o Bolão com Mercado Pago e Firebase",
+  "main": "api/webhook.js",
+  "dependencies": {
+    "firebase-admin": "^11.11.1",
+    "mercadopago": "^2.0.1"
+  }
+}
