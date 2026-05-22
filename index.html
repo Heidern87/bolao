@@ -262,6 +262,7 @@
         <div id="tela-painel-admin" class="tela">
             <div class="admin-nav">
                 <div class="admin-tab ativa" id="tab-jogos" onclick="mudarTabAdmin('jogos')">Novo Jogo</div>
+                <div class="admin-tab" id="tab-gerenciar" onclick="mudarTabAdmin('gerenciar')">Gerenciar Rodada</div>
                 <div class="admin-tab" id="tab-ganhadores" onclick="mudarTabAdmin('ganhadores')">Ganhadores</div>
             </div>
 
@@ -271,10 +272,18 @@
                     <div class="form-user" style="border:none; padding:0;">
                         <input type="text" id="new-casa" placeholder="Time da Casa">
                         <input type="text" id="new-visita" placeholder="Time Visitante">
-                        <label style="font-size: 0.85rem; color: var(--text-muted);">Horário Limite de Aposta (5 min
-                            antes do jogo):</label>
+                        <label style="font-size: 0.85rem; color: var(--text-muted);">Horário Limite de Aposta:</label>
                         <input type="datetime-local" id="new-limite">
                         <button class="btn btn-success" onclick="cadastrarNovoJogo()">Publicar Jogo no Bolão</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="sub-admin-gerenciar" style="display: none;">
+                <div class="card-jogo">
+                    <h4 style="margin-bottom: 12px;">Jogos em Andamento</h4>
+                    <div id="lista-jogos-admin" style="font-size: 0.95rem;">
+                        <p style="color: var(--text-muted);">Buscando jogos ativos...</p>
                     </div>
                 </div>
             </div>
@@ -322,7 +331,7 @@
 
         // 1. CARREGAR JOGOS COM FECHAMENTO AUTOMÁTICO
         function escutarJogos() {
-            db.collection("jogos").where("status", "==", "aberto").onSnapshot((snapshot) => {
+            db.collection("jogos").where("status", "==", "ativo").onSnapshot((snapshot) => {
                 const listaDiv = document.getElementById("lista-jogos");
                 if (snapshot.empty) {
                     listaDiv.innerHTML = "<p style='text-align:center;padding:20px;'>Nenhum jogo aberto no momento.</p>";
@@ -391,7 +400,6 @@
                 btn.innerText = "Gerando Pix..."; btn.disabled = true;
                 const resposta = await fetch(`${URL_VERCEL}/api/pix`, {
                     method: "POST",
-                    mode: "cors", // ⬅️ ADICIONE APENAS ESTA LINHA AQUI!
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ jogoId, golsCasa, golsVisita, nome, whatsapp })
                 });
@@ -463,14 +471,53 @@
 
         function mudarTabAdmin(tipo) {
             document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('ativa'));
+            document.getElementById('sub-admin-jogos').style.display = 'none';
+            document.getElementById('sub-admin-gerenciar').style.display = 'none';
+            document.getElementById('sub-admin-ganhadores').style.display = 'none';
+
             if (tipo === 'jogos') {
                 document.getElementById('tab-jogos').classList.add('ativa');
                 document.getElementById('sub-admin-jogos').style.display = 'block';
-                document.getElementById('sub-admin-ganhadores').style.display = 'none';
+            } else if (tipo === 'gerenciar') {
+                document.getElementById('tab-gerenciar').classList.add('ativa');
+                document.getElementById('sub-admin-gerenciar').style.display = 'block';
+                carregarJogosAdmin(); // Carrega a lista sempre que clicas na aba
             } else {
                 document.getElementById('tab-ganhadores').classList.add('ativa');
-                document.getElementById('sub-admin-jogos').style.display = 'none';
                 document.getElementById('sub-admin-ganhadores').style.display = 'block';
+            }
+        }
+
+        // Função para o Admin ver os jogos e poder encerrar
+        function carregarJogosAdmin() {
+            db.collection("jogos").where("status", "==", "ativo").get().then((snapshot) => {
+                const container = document.getElementById("lista-jogos-admin");
+                if (snapshot.empty) {
+                    container.innerHTML = "<p style='color:red;'>Nenhum jogo ativo no momento.</p>";
+                    return;
+                }
+                container.innerHTML = "";
+                snapshot.forEach((doc) => {
+                    const j = doc.data();
+                    container.innerHTML += `
+                        <div style="padding: 10px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                            <div><b>${j.timeCasa} x ${j.timeVisita}</b></div>
+                            <button class="btn btn-primary" style="width: auto; padding: 6px 12px; margin: 0; background: #dc2626; font-size: 0.8rem;" 
+                                onclick="encerrarJogo('${doc.id}')">🚫 Encerrar</button>
+                        </div>
+                    `;
+                });
+            });
+        }
+
+        // Função mágica que muda o status no Firebase e esconde o jogo dos clientes!
+        async function encerrarJogo(idJogo) {
+            if (confirm("Tens a certeza que queres encerrar as apostas deste jogo? Ele vai sumir do site dos clientes, mas os dados continuam salvos.")) {
+                await db.collection("jogos").doc(idJogo).update({
+                    status: "encerrado"
+                });
+                alert("Jogo encerrado com sucesso!");
+                carregarJogosAdmin(); // atualiza a tela do admin
             }
         }
 
@@ -489,7 +536,7 @@
                 timeCasa,
                 timeVisita,
                 dataFechamento,
-                status: "aberto",
+                status: "ativo",
                 criadoEm: firebase.firestore.FieldValue.serverTimestamp()
             });
 
