@@ -10,9 +10,11 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-// 💡 NOVO PADRÃO DA VERSÃO 2: Configura o cliente do Mercado Pago corretamente
+// 💡 SEGURANÇA EXTRA: Pega o token limpando espaços invisíveis que possam quebrar a SDK
+const tokenLimpo = (process.env.MERCADO_PAGO_TOKEN || "").trim();
+
 const client = new MercadoPagoConfig({
-  accessToken: process.env.MERCADO_PAGO_TOKEN
+  accessToken: tokenLimpo
 });
 const paymentInstance = new Payment(client);
 
@@ -32,18 +34,20 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { juegoId, golsCasa, golsVisita, nome, whatsapp } = req.body;
-
-    // Ajuste caso a variável venha como jogoId ou juegoId do front-end
-    const idDoJogo = juegoId || req.body.jogoId;
+    const { jogoId, golsCasa, golsVisita, nome, whatsapp } = req.body;
+    const idDoJogo = jogoId || req.body.jogoId;
 
     if (!idDoJogo || golsCasa === undefined || golsVisita === undefined || !nome || !whatsapp) {
       return res.status(400).json({ error: 'Dados insuficientes' });
     }
 
+    // Validação extra antes de chamar o Mercado Pago
+    if (!tokenLimpo) {
+      throw new Error('O token do Mercado Pago nao foi carregado nas variaveis de ambiente da Vercel.');
+    }
+
     const emailFicticio = `bolao-${Date.now()}@bolao.com`;
 
-    // 💡 NOVO PADRÃO DA VERSÃO 2: Montagem do objeto de pagamento
     const paymentData = {
       body: {
         transaction_amount: 5.00,
@@ -57,15 +61,17 @@ module.exports = async (req, res) => {
       }
     };
 
-    // Chamada usando a nova instância da SDK v2
     const payment = await paymentInstance.create(paymentData);
 
-    if (!payment || !payment.point_of_interaction) {
-      throw new Error('Resposta inválida do Mercado Pago');
+    // Na SDK v2, os dados do Pix costumam vir direto na raiz do payment ou dentro de payment.body
+    const dadosResposta = payment.body || payment;
+
+    if (!dadosResposta || !dadosResposta.point_of_interaction) {
+      throw new Error('Resposta invalida da API do Mercado Pago ao gerar o Pix.');
     }
 
-    const qrCodeBase64 = payment.point_of_interaction.transaction_data.qr_code_base64;
-    const copyAndPaste = payment.point_of_interaction.transaction_data.qr_code;
+    const qrCodeBase64 = dadosResposta.point_of_interaction.transaction_data.qr_code_base64;
+    const copyAndPaste = dadosResposta.point_of_interaction.transaction_data.qr_code;
 
     // Salva o palpite provisório no Firebase
     const novoPalpite = {
