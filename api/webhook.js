@@ -28,13 +28,13 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // CORREÇÃO: Pega o ID do pagamento de qualquer lugar que o Mercado Pago decida enviar (body, query ou action)
+    // CAPTURA AMPLIADA: Pega o ID enviado no corpo ou na URL da requisição
     const paymentId = req.body.data?.id || req.body.id || req.query['data.id'] || req.query.id;
 
     if (paymentId) {
       console.log(`Recebida notificação para o ID de pagamento: ${paymentId}`);
 
-      // Chamada para buscar os detalhes do pagamento na v2
+      // Busca os detalhes do pagamento na v2
       const paymentInfo = await paymentInstance.get({ id: paymentId });
       const dadosPagamento = paymentInfo.body || paymentInfo;
 
@@ -43,7 +43,7 @@ module.exports = async (req, res) => {
 
       console.log(`Status do pagamento ${paymentId}: ${status} | Email: ${emailUsuario}`);
 
-      // CORREÇÃO AMPLIADA: Aceita 'approved' ou 'authorized' (caso fique pendente em análise na conta)
+      // Aceita tanto 'approved' quanto 'authorized' para garantir a liberação
       if ((status === 'approved' || status === 'authorized') && emailUsuario) {
         const palpitesRef = db.collection('palpites');
         const snapshot = await palpitesRef.where('email', '==', emailUsuario).where('status', '==', 'provisorio').get();
@@ -59,11 +59,11 @@ module.exports = async (req, res) => {
       }
     }
 
-    // Responde SEMPRE 200 OK para o Mercado Pago não ficar tentando reenviar infinitamente
+    // Retorna SEMPRE 200 para o Mercado Pago zerar os erros e parar de travar a fila
     res.status(200).send('OK');
   } catch (error) {
     console.error('Erro no processamento do webhook:', error);
-    // Mesmo com erro interno, devolvemos 200 para o Mercado Pago não travar a fila de envios
+    // Mesmo se der erro interno de busca, retornamos 200 para o Mercado Pago marcar como entregue
     res.status(200).send('OK com erro interno tratado');
   }
 };
