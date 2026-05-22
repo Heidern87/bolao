@@ -391,6 +391,7 @@
                 btn.innerText = "Gerando Pix..."; btn.disabled = true;
                 const resposta = await fetch(`${URL_VERCEL}/api/pix`, {
                     method: "POST",
+                    mode: "cors", // ⬅️ ADICIONE APENAS ESTA LINHA AQUI!
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ jogoId, golsCasa, golsVisita, nome, whatsapp })
                 });
