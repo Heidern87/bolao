@@ -384,8 +384,8 @@
                         iniciarContagemRegressiva(id, j.dataFechamento);
                     }
 
-                    // Cálculo automático de prêmio real-time (Tirando seus 25%)
-                    db.collection("palpites").where("jogoId", "==", id).where("status", "==", "pago").onSnapshot((pSnap) => {
+                    // CORRIGIDO: Agora busca por status "confirmado" para atualizar o prêmio na tela!
+                    db.collection("palpites").where("jogoId", "==", id).where("status", "==", "confirmado").onSnapshot((pSnap) => {
                         const premio = pSnap.size * 3.75;
                         document.getElementById(`premio-${id}`).innerText = `💰 Prêmio: R$ ${premio.toFixed(2).replace('.', ',')}`;
                     });
@@ -420,7 +420,7 @@
                     document.getElementById("qr-code").src = `data:image/jpeg;base64,${dados.qrCodeBase64}`;
                     document.getElementById("texto-copia-cola").innerText = dados.copyAndPaste;
 
-                    // ESCUTA EM TEMPO REAL: Se o status virar "pago", joga o cliente para a tela de bilhete!
+                    // ESCUTA EM TEMPO REAL: Se o status virar "confirmado", joga o cliente para a tela de bilhete!
                     if (listenerPalpitePago) listenerPalpitePago(); // limpa anterior
 
                     // Procuramos o palpite recém criado do usuário no Firebase
@@ -430,7 +430,8 @@
                         .orderBy("criadoEm", "desc").limit(1)
                         .onSnapshot((snapshot) => {
                             snapshot.forEach((doc) => {
-                                if (doc.data().status === "pago") {
+                                // CORRIGIDO: Monitorando o status "confirmado" enviado pela API do Mercado Pago
+                                if (doc.data().status === "confirmado") {
                                     listenerPalpitePago(); // Desliga a escuta
                                     exibirComprovante(doc.id, doc.data(), timeCasa, timeVisita);
                                 }
@@ -569,10 +570,11 @@
 
             divResultados.innerHTML = "Buscando acertadores...";
 
+            // CORRIGIDO: Agora filtra os vencedores buscando pelo status "confirmado" vindo do Pix pago!
             const snapshot = await db.collection("palpites")
                 .where("golsCasa", "==", gc)
                 .where("golsVisita", "==", gv)
-                .where("status", "==", "pago").get();
+                .where("status", "==", "confirmado").get();
 
             if (snapshot.empty) {
                 divResultados.innerHTML = "<b style='color:red;'>Ninguém acertou esse placar nesta rodada.</b>";
