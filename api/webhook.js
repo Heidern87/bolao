@@ -28,22 +28,23 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { type, data } = req.body;
+    // CORREÇÃO: Pega o ID do pagamento de qualquer lugar que o Mercado Pago decida enviar (body, query ou action)
+    const paymentId = req.body.data?.id || req.body.id || req.query['data.id'] || req.query.id;
 
-    // Verifica se a notificação é de um pagamento recebido
-    if (type === 'payment' || req.query['data.id']) {
-      const paymentId = data?.id || req.query['data.id'];
+    if (paymentId) {
+      console.log(`Recebida notificação para o ID de pagamento: ${paymentId}`);
 
-      // Chamada atualizada para buscar os detalhes do pagamento na v2
+      // Chamada para buscar os detalhes do pagamento na v2
       const paymentInfo = await paymentInstance.get({ id: paymentId });
-
-      // Na v2 os dados vêm direto no objeto ou dentro de .body
       const dadosPagamento = paymentInfo.body || paymentInfo;
+
       const status = dadosPagamento.status;
       const emailUsuario = dadosPagamento.payer?.email;
 
-      // Se o Pix foi pago com sucesso, atualiza o status no Firebase Firestore
-      if (status === 'approved' && emailUsuario) {
+      console.log(`Status do pagamento ${paymentId}: ${status} | Email: ${emailUsuario}`);
+
+      // CORREÇÃO AMPLIADA: Aceita 'approved' ou 'authorized' (caso fique pendente em análise na conta)
+      if ((status === 'approved' || status === 'authorized') && emailUsuario) {
         const palpitesRef = db.collection('palpites');
         const snapshot = await palpitesRef.where('email', '==', emailUsuario).where('status', '==', 'provisorio').get();
 
@@ -58,10 +59,11 @@ module.exports = async (req, res) => {
       }
     }
 
-    // Responde 200 OK para o Mercado Pago saber que recebemos o aviso
+    // Responde SEMPRE 200 OK para o Mercado Pago não ficar tentando reenviar infinitamente
     res.status(200).send('OK');
   } catch (error) {
     console.error('Erro no processamento do webhook:', error);
-    res.status(500).json({ error: error.message });
+    // Mesmo com erro interno, devolvemos 200 para o Mercado Pago não travar a fila de envios
+    res.status(200).send('OK com erro interno tratado');
   }
 };
