@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bolão Premiado Pro</title>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1e3a8a">
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-dark: #1e40af;
+            --accent: #f59e0b;
+            --success: #16a34a;
+            --background: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--text-main);
+            padding-bottom: 50px;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 25px 20px;
+            text-align: center;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+        }
+
+        header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+
+        /* Telas */
+        .tela {
+            display: none;
+        }
+
+        .tela-ativa {
+            display: block;
+        }
+
+        /* Cards e Estilos */
+        .card-jogo {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(0, 0, 0, 0.03);
+        }
+
+        .placar-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 10px 0 20px 0;
+        }
+
+        .time-box {
+            width: 38%;
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .inputs-placar {
+            width: 24%;
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+        }
+
+        .inputs-placar input {
+            width: 42px;
+            height: 42px;
+            text-align: center;
+            font-size: 1.3rem;
+            font-weight: 800;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+        }
+
+        .form-user {
+            border-top: 1px dashed #e5e7eb;
+            padding-top: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .form-user input,
+        .form-admin input {
+            width: 100%;
+            padding: 12px;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 0.95rem;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 5px;
+            text-align: center;
+            display: block;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+        }
+
+        .btn-success {
+            background-color: var(--success);
+        }
+
+        .btn-muted {
+            background: transparent;
+            color: var(--text-muted);
+        }
+
+        #qr-code {
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+            display: block;
+            border: 1px solid #e5e7eb;
+            padding: 8px;
+            border-radius: 12px;
+        }
+
+        .copia-cola-box {
+            width: 100%;
+            padding: 12px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            word-break: break-all;
+            font-size: 0.8rem;
+            margin-bottom: 15px;
+            max-height: 70px;
+            overflow-y: auto;
+        }
+
+        /* Admin */
+        .admin-nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .admin-tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            background: #e5e7eb;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .admin-tab.ativa {
+            background: var(--primary);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>🏆 BOLÃO PREMIADO</h1>
+        <p>Aposte com segurança e fature alto!</p>
+    </header>
+
+    <div class="container">
+
+        <div id="tela-jogos" class="tela tela-ativa">
+            <div id="lista-jogos">
+                <p style="text-align:center; padding:20px;">Carregando partidas...</p>
+            </div>
+            <button class="btn btn-muted" onclick="irParaLoginAdmin()" style="margin-top: 40px; font-size: 0.85rem;">🔒
+                Área do Organizador</button>
+        </div>
+
+        <div id="tela-pix" class="tela">
+            <div class="card-jogo" style="text-align: center;">
+                <h2 style="color: var(--success);">Palpite Registrado! 🎉</h2>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 5px;">Pague o Pix de <b>R$ 5,00</b>
+                    para validar.</p>
+                <img id="qr-code" src="" alt="QR Code">
+                <div class="copia-cola-box" id="texto-copia-cola">Carregando código...</div>
+                <button class="btn btn-primary" onclick="copiarPix()">Copiar Código Pix</button>
+                <button class="btn btn-muted" onclick="voltarParaJogos()">Cancelar e Voltar</button>
+            </div>
+        </div>
+
+        <div id="tela-comprovante" class="tela">
+            <div class="card-jogo" style="text-align: center; border: 2px solid var(--success);">
+                <h2 style="color: var(--success);">🔥 APOSTA CONFIRMADA! 🔥</h2>
+                <p style="margin: 10px 0; font-size: 1.1rem;">Seu palpite foi recebido com sucesso no sistema.</p>
+                <div id="dados-bilhete"
+                    style="background: #f3f4f6; padding: 15px; border-radius: 10px; text-align: left; font-size: 0.95rem; line-height: 1.6; margin-bottom: 15px;">
+                </div>
+                <button class="btn btn-success" id="btn-whatsapp-share">🟢 Enviar Comprovante para o WhatsApp</button>
+                <button class="btn btn-muted" onclick="voltarParaJogos()">Fazer Nova Aposta</button>
+            </div>
+        </div>
+
+        <div id="tela-login-admin" class="tela">
+            <div class="card-jogo">
+                <h3 style="margin-bottom: 15px;">Acesso Restrito</h3>
+                <div class="form-user" style="border:none; padding:0;">
+                    <input type="email" id="admin-email" placeholder="E-mail do Administrador">
+                    <input type="password" id="admin-senha" placeholder="Senha">
+                    <button class="btn btn-primary" onclick="loginAdmin()">Entrar no Painel</button>
+                    <button class="btn btn-muted" onclick="voltarParaJogos()">Voltar ao Início</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="tela-painel-admin" class="tela">
+            <div class="admin-nav">
+                <div class="admin-tab ativa" id="tab-jogos" onclick="mudarTabAdmin('jogos')">Novo Jogo</div>
+                <div class="admin-tab" id="tab-ganhadores" onclick="mudarTabAdmin('ganhadores')">Ganhadores</div>
+            </div>
+
+            <div id="sub-admin-jogos">
+                <div class="card-jogo">
+                    <h4 style="margin-bottom: 12px;">Inserir Nova Partida</h4>
+                    <div class="form-user" style="border:none; padding:0;">
+                        <input type="text" id="new-casa" placeholder="Time da Casa">
+                        <input type="text" id="new-visita" placeholder="Time Visitante">
+                        <label style="font-size: 0.85rem; color: var(--text-muted);">Horário Limite de Aposta (5 min
+                            antes do jogo):</label>
+                        <input type="datetime-local" id="new-limite">
+                        <button class="btn btn-success" onclick="cadastrarNovoJogo()">Publicar Jogo no Bolão</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="sub-admin-ganhadores" style="display: none;">
+                <div class="card-jogo">
+                    <h4 style="margin-bottom: 12px;">Buscar Acertadores</h4>
+                    <div class="form-user" style="border:none; padding:0; flex-direction: row; gap: 5px;">
+                        <input type="number" id="resultado-casa" placeholder="Gols Casa" style="width: 50%;">
+                        <input type="number" id="resultado-visita" placeholder="Gols Visita" style="width: 50%;">
+                    </div>
+                    <button class="btn btn-primary" onclick="buscarGanhadores()">Filtrar Vencedores</button>
+                    <div id="lista-ganhadores" style="margin-top: 15px; font-size: 0.9rem;"></div>
+                </div>
+            </div>
+
+            <button class="btn btn-muted" onclick="logoutAdmin()">Sair do Painel Admin</button>
+        </div>
+
+    </div>
+
+    <script>
+        // Configurações do Firebase com as suas chaves reais
+        const firebaseConfig = {
+            apiKey: "AIzaSyCRtKaZdn1eppIgrQFZD0NSfmTxYBoddg0",
+            authDomain: "bolao-amigos-a2cf9.firebaseapp.com",
+            projectId: "bolao-amigos-a2cf9",
+            storageBucket: "bolao-amigos-a2cf9.firebasestorage.app",
+            messagingSenderId: "729933554081",
+            appId: "1:729933554081:web:4eebd8024ecb33ae0cebe0"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        const URL_VERCEL = "https://bolao-mxzs.vercel.app";
+
+        let listenerPalpitePago = null;
+
+        // Navegação simples entre telas
+        function alternarTela(idTela) {
+            document.querySelectorAll('.tela').forEach(t => t.classList.remove('tela-ativa'));
+            document.getElementById(idTela).classList.add('tela-ativa');
+        }
+
+        // 1. CARREGAR JOGOS COM FECHAMENTO AUTOMÁTICO
+        function escutarJogos() {
+            db.collection("jogos").where("status", "==", "aberto").onSnapshot((snapshot) => {
+                const listaDiv = document.getElementById("lista-jogos");
+                if (snapshot.empty) {
+                    listaDiv.innerHTML = "<p style='text-align:center;padding:20px;'>Nenhum jogo aberto no momento.</p>";
+                    return;
+                }
+                listaDiv.innerHTML = "";
+
+                const agora = new Date();
+
+                snapshot.forEach((doc) => {
+                    const j = doc.data();
+                    const id = doc.id;
+
+                    // Verificação de segurança de horário automático
+                    if (j.dataFechamento) {
+                        const limite = new Date(j.dataFechamento);
+                        if (agora >= limite) return; // O jogo estourou o horário, pula e não mostra no app
+                    }
+
+                    listaDiv.innerHTML += `
+                    <div class="card-jogo" id="card-${id}">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <span class="status-badge" style="color:var(--success)">Apostas Abertas</span>
+                            <span id="premio-${id}" style="font-weight:800; color:#b45309; background:#fef3c7; padding:4px 10px; border-radius:20px; font-size:0.85rem;">💰 Prêmio: Calculando...</span>
+                        </div>
+                        <div class="placar-container">
+                            <div class="time-box">${j.timeCasa}</div>
+                            <div class="inputs-placar">
+                                <input type="number" id="golsCasa-${id}" inputmode="numeric" min="0" placeholder="0">
+                                <span>×</span>
+                                <input type="number" id="golsVisita-${id}" inputmode="numeric" min="0" placeholder="0">
+                            </div>
+                            <div class="time-box">${j.timeVisita}</div>
+                        </div>
+                        <div class="form-user">
+                            <input type="text" id="nome-${id}" placeholder="Seu nome completo" required>
+                            <input type="tel" id="whatsapp-${id}" placeholder="WhatsApp (Apenas números)" required>
+                            <button class="btn btn-primary" onclick="processarPalpite('${id}', '${j.timeCasa}', '${j.timeVisita}')">Enviar Palpite (R$ 5,00)</button>
+                        </div>
+                    </div>
+                `;
+
+                    // Cálculo automático de prêmio real-time (Tirando seus 25%)
+                    db.collection("palpites").where("jogoId", "==", id).where("status", "==", "pago").onSnapshot((pSnap) => {
+                        const premio = pSnap.size * 3.75;
+                        document.getElementById(`premio-${id}`).innerText = `💰 Prêmio: R$ ${premio.toFixed(2).replace('.', ',')}`;
+                    });
+                });
+            });
+        }
+
+        // 2. SOLICITAR PIX E ESCUTAR PAGAMENTO REAL-TIME (Webhook Backup)
+        async function processarPalpite(jogoId, timeCasa, timeVisita) {
+            const golsCasa = document.getElementById(`golsCasa-${jogoId}`).value;
+            const golsVisita = document.getElementById(`golsVisita-${jogoId}`).value;
+            const nome = document.getElementById(`nome-${jogoId}`).value.trim();
+            const whatsapp = document.getElementById(`whatsapp-${jogoId}`).value.trim();
+
+            if (golsCasa === "" || golsVisita === "" || !nome || !whatsapp) {
+                alert("⚠️ Preencha todos os campos!");
+                return;
+            }
+
+            const btn = document.querySelector(`#card-${jogoId} button`);
+            try {
+                btn.innerText = "Gerando Pix..."; btn.disabled = true;
+                const resposta = await fetch(`${URL_VERCEL}/api/pix`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ jogoId, golsCasa, golsVisita, nome, whatsapp })
+                });
+                const dados = await resposta.json();
+
+                if (dados.success) {
+                    alternarTela("tela-pix");
+                    document.getElementById("qr-code").src = `data:image/jpeg;base64,${dados.qrCodeBase64}`;
+                    document.getElementById("texto-copia-cola").innerText = dados.copyAndPaste;
+
+                    // ESCUTA EM TEMPO REAL: Se o status virar "pago", joga o cliente para a tela de bilhete!
+                    if (listenerPalpitePago) listenerPalpitePago(); // limpa anterior
+
+                    // Procuramos o palpite recém criado do usuário no Firebase
+                    listenerPalpitePago = db.collection("palpites")
+                        .where("jogoId", "==", jogoId)
+                        .where("whatsapp", "==", whatsapp)
+                        .orderBy("criadoEm", "desc").limit(1)
+                        .onSnapshot((snapshot) => {
+                            snapshot.forEach((doc) => {
+                                if (doc.data().status === "pago") {
+                                    listenerPalpitePago(); // Desliga a escuta
+                                    exibirComprovante(doc.id, doc.data(), timeCasa, timeVisita);
+                                }
+                            });
+                        });
+                } else {
+                    alert("Erro: " + dados.error);
+                    btn.innerText = "Enviar Palpite (R$ 5,00)"; btn.disabled = false;
+                }
+            } catch (e) {
+                alert("Erro na conexão.");
+                btn.innerText = "Enviar Palpite (R$ 5,00)"; btn.disabled = false;
+            }
+        }
+
+        // 3. GERAR COMPROVANTE E COMPARTILHAR NO WHATSAPP
+        function exibirComprovante(idBilhete, dados, timeCasa, timeVisita) {
+            alternarTela("tela-comprovante");
+            const textoHtml = `
+            <b>Bilhete:</b> #${idBilhete}<br>
+            <b>Nome:</b> ${dados.nome}<br>
+            <b>Confronto:</b> ${timeCasa} x ${timeVisita}<br>
+            <b>Palpite Marcado:</b> ${dados.golsCasa} × ${dados.golsVisita}<br>
+            <b>Pagamento:</b> Confirmado via Pix ✅
+        `;
+            document.getElementById("dados-bilhete").innerHTML = textoHtml;
+
+            const textoWhats = encodeURIComponent(`🏆 *BILHETE OFICIAL DO BOLÃO*\n\n📌 *Bilhete:* #${idBilhete}\n👤 *Apostador:* ${dados.nome}\n⚽ *Jogo:* ${timeCasa} x ${timeVisita}\n🔥 *Palpite:* ${dados.golsCasa} x ${dados.golsVisita}\n\n💳 *Status:* CONFIRMADO E PAGO! BOA SORTE! 🍀`);
+            document.getElementById("btn-whatsapp-share").onclick = () => {
+                window.open(`https://api.whatsapp.com/send?text=${textoWhats}`, '_blank');
+            };
+        }
+
+        // 4. SISTEMA ADMINISTRATIVO (FIREBASE AUTH)
+        function irParaLoginAdmin() { alternarTela("tela-login-admin"); }
+        function voltarParaJogos() { alternarTela("tela-jogos"); }
+
+        async function loginAdmin() {
+            const email = document.getElementById("admin-email").value;
+            const senha = document.getElementById("admin-senha").value;
+            try {
+                await auth.signInWithEmailAndPassword(email, senha);
+                alternarTela("tela-painel-admin");
+            } catch (e) { alert("Acesso negado! Senha incorreta."); }
+        }
+
+        function logoutAdmin() { auth.signOut(); alternarTela("tela-jogos"); }
+
+        function mudarTabAdmin(tipo) {
+            document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('ativa'));
+            if (tipo === 'jogos') {
+                document.getElementById('tab-jogos').classList.add('ativa');
+                document.getElementById('sub-admin-jogos').style.display = 'block';
+                document.getElementById('sub-admin-ganhadores').style.display = 'none';
+            } else {
+                document.getElementById('tab-ganhadores').classList.add('ativa');
+                document.getElementById('sub-admin-jogos').style.display = 'none';
+                document.getElementById('sub-admin-ganhadores').style.display = 'block';
+            }
+        }
+
+        // Admin: Cadastrar Nova Partida com Horário de Fechamento
+        async function cadastrarNovoJogo() {
+            const timeCasa = document.getElementById("new-casa").value;
+            const timeVisita = document.getElementById("new-visita").value;
+            const dataFechamento = document.getElementById("new-limite").value;
+
+            if (!timeCasa || !timeVisita || !dataFechamento) {
+                alert("Preencha todos os campos do confronto!");
+                return;
+            }
+
+            await db.collection("jogos").add({
+                timeCasa,
+                timeVisita,
+                dataFechamento,
+                status: "aberto",
+                criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            alert("Jogo publicado com sucesso no Bolão!");
+            document.getElementById("new-casa").value = "";
+            document.getElementById("new-visita").value = "";
+            document.getElementById("new-limite").value = "";
+        }
+
+        // Admin: Filtrar e Buscar Ganhadores Direto no Aplicativo
+        async function buscarGanhadores() {
+            const gc = document.getElementById("resultado-casa").value;
+            const gv = document.getElementById("resultado-visita").value;
+            const divResultados = document.getElementById("lista-ganhadores");
+
+            if (gc === "" || gv === "") {
+                alert("Insira o resultado final do jogo!");
+                return;
+            }
+
+            divResultados.innerHTML = "Buscando acertadores...";
+
+            const snapshot = await db.collection("palpites")
+                .where("golsCasa", "==", gc)
+                .where("golsVisita", "==", gv)
+                .where("status", "==", "pago").get();
+
+            if (snapshot.empty) {
+                divResultados.innerHTML = "<b style='color:red;'>Ninguém acertou esse placar nesta rodada.</b>";
+                return;
+            }
+
+            let html = `<b style='color:green;'>🎉 Encontrado(s) ${snapshot.size} ganhador(es):</b><br><br>`;
+            snapshot.forEach(doc => {
+                const p = doc.data();
+                html += `👤 <b>${p.nome}</b><br>📞 WhatsApp: ${p.whatsapp}<br>🎫 Bilhete: #${doc.id}<br><hr style='margin:5px 0; opacity:0.3;'>`;
+            });
+            divResultados.innerHTML = html;
+        }
+
+        function copiarPix() {
+            const texto = document.getElementById("texto-copia-cola").innerText;
+            navigator.clipboard.writeText(texto);
+            alert("Código Pix Copiado!");
+        }
+
+        // Inicialização
+        escutarJogos();
+    </script>
+</body>
+
+</html>
