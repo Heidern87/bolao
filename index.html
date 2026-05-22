@@ -354,9 +354,14 @@
                     listaDiv.innerHTML += `
                     <div class="card-jogo" id="card-${id}">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                            <span class="status-badge" style="color:var(--success)">Apostas Abertas</span>
+                            <span class="status-badge" style="color:var(--success); font-weight: bold;">Apostas Abertas</span>
                             <span id="premio-${id}" style="font-weight:800; color:#b45309; background:#fef3c7; padding:4px 10px; border-radius:20px; font-size:0.85rem;">💰 Prêmio: Calculando...</span>
                         </div>
+                        
+                        <div id="cronometro-${id}" style="text-align: center; background: #f3f4f6; padding: 6px; border-radius: 8px; margin-bottom: 12px; font-weight: bold; color: #dc2626; font-size: 0.9rem;">
+                            ⏳ Tempo restante: --:--:--
+                        </div>
+
                         <div class="placar-container">
                             <div class="time-box">${j.timeCasa}</div>
                             <div class="inputs-placar">
@@ -369,10 +374,15 @@
                         <div class="form-user">
                             <input type="text" id="nome-${id}" placeholder="Seu nome completo" required>
                             <input type="tel" id="whatsapp-${id}" placeholder="WhatsApp (Apenas números)" required>
-                            <button class="btn btn-primary" onclick="processarPalpite('${id}', '${j.timeCasa}', '${j.timeVisita}')">Enviar Palpite (R$ 5,00)</button>
+                            <button class="btn btn-primary" id="btn-enviar-${id}" onclick="processarPalpite('${id}', '${j.timeCasa}', '${j.timeVisita}')">Enviar Palpite (R$ 5,00)</button>
                         </div>
                     </div>
                 `;
+
+                    // Ativa o relógio regressivo em tempo real para este jogo específico
+                    if (j.dataFechamento) {
+                        iniciarContagemRegressiva(id, j.dataFechamento);
+                    }
 
                     // Cálculo automático de prêmio real-time (Tirando seus 25%)
                     db.collection("palpites").where("jogoId", "==", id).where("status", "==", "pago").onSnapshot((pSnap) => {
@@ -581,6 +591,49 @@
             const texto = document.getElementById("texto-copia-cola").innerText;
             navigator.clipboard.writeText(texto);
             alert("Código Pix Copiado!");
+        }
+
+        // FUNÇÃO QUE CONTROLA O RELÓGIO SEGUNDO A SEGUNDO
+        function iniciarContagemRegressiva(jogoId, dataLimiteStr) {
+            const caixaCronometro = document.getElementById(`cronometro-${jogoId}`);
+            const btnEnviar = document.getElementById(`btn-enviar-${jogoId}`);
+            const limite = new Date(dataLimiteStr).getTime();
+
+            // Executa a função a cada 1 segundo
+            const intervalo = setInterval(() => {
+                const agora = new Date().getTime();
+                const diferenca = limite - agora;
+
+                // Se o tempo estourou/acabou
+                if (diferenca <= 0) {
+                    clearInterval(intervalo);
+                    if (caixaCronometro) {
+                        caixaCronometro.innerHTML = "❌ Apostas Encerradas!";
+                        caixaCronometro.style.color = "#6b7280";
+                    }
+                    if (btnEnviar) {
+                        btnEnviar.innerText = "Apostas Encerradas";
+                        btnEnviar.disabled = true;
+                        btnEnviar.style.background = "#9ca3af";
+                    }
+                    return;
+                }
+
+                // Cálculos matemáticos para converter a diferença em Horas, Minutos e Segundos
+                const horas = Math.floor((diferenca % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutos = Math.floor((diferenca % (1000 * 60 * 60)) / (1000 * 60));
+                const segundos = Math.floor((diferenca % (1000 * 60)) / 1000);
+
+                // Formata para ter sempre dois dígitos (ex: 05 em vez de 5)
+                const hFormato = horas.toString().padStart(2, '0');
+                const mFormato = minutos.toString().padStart(2, '0');
+                const sFormato = segundos.toString().padStart(2, '0');
+
+                // Atualiza o texto na tela do usuário
+                if (caixaCronometro) {
+                    caixaCronometro.innerHTML = `⏳ Tempo restante: ${hFormato}:${mFormato}:${sFormato}`;
+                }
+            }, 1000);
         }
 
         // Inicialização
