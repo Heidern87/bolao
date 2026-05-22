@@ -594,17 +594,18 @@
         }
 
         // FUNÇÃO QUE CONTROLA O RELÓGIO SEGUNDO A SEGUNDO
+        // FUNÇÃO DO RELÓGIO CORRIGIDA PARA O FUSO HORÁRIO LOCAL
         function iniciarContagemRegressiva(jogoId, dataLimiteStr) {
             const caixaCronometro = document.getElementById(`cronometro-${jogoId}`);
             const btnEnviar = document.getElementById(`btn-enviar-${jogoId}`);
-            const limite = new Date(dataLimiteStr).getTime();
 
-            // Executa a função a cada 1 segundo
+            // Força o JavaScript a criar o objeto de data interpretando o texto no horário local
+            const limite = new Date(dataLimiteStr.replace(/-/g, '/').replace('T', ' ')).getTime();
+
             const intervalo = setInterval(() => {
                 const agora = new Date().getTime();
                 const diferenca = limite - agora;
 
-                // Se o tempo estourou/acabou
                 if (diferenca <= 0) {
                     clearInterval(intervalo);
                     if (caixaCronometro) {
@@ -619,19 +620,25 @@
                     return;
                 }
 
-                // Cálculos matemáticos para converter a diferença em Horas, Minutos e Segundos
+                // Cálculos de dias, horas, minutos e segundos
+                const dias = Math.floor(diferenca / (1000 * 60 * 60 * 24));
                 const horas = Math.floor((diferenca % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                 const minutos = Math.floor((diferenca % (1000 * 60 * 60)) / (1000 * 60));
                 const segundos = Math.floor((diferenca % (1000 * 60)) / 1000);
 
-                // Formata para ter sempre dois dígitos (ex: 05 em vez de 5)
-                const hFormato = horas.toString().padStart(2, '0');
+                // Formatação visual com dois dígitos
                 const mFormato = minutos.toString().padStart(2, '0');
                 const sFormato = segundos.toString().padStart(2, '0');
 
-                // Atualiza o texto na tela do usuário
+                // Se faltar mais de 24 horas, mostra a quantidade de dias também!
                 if (caixaCronometro) {
-                    caixaCronometro.innerHTML = `⏳ Tempo restante: ${hFormato}:${mFormato}:${sFormato}`;
+                    if (dias > 0) {
+                        const hFormato = horas.toString().padStart(2, '0');
+                        caixaCronometro.innerHTML = `⏳ Tempo restante: ${dias}d ${hFormato}:${mFormato}:${sFormato}`;
+                    } else {
+                        const hFormato = horas.toString().padStart(2, '0');
+                        caixaCronometro.innerHTML = `⏳ Tempo restante: ${hFormato}:${mFormato}:${sFormato}`;
+                    }
                 }
             }, 1000);
         }
