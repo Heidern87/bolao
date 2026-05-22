@@ -1,4 +1,4 @@
-const mp = require('mercadopago');
+const { MercadoPagoConfig, Payment } = require('mercadopago');
 const admin = require('firebase-admin');
 
 // Inicializa o Firebase se ainda não foi inicializado
@@ -10,13 +10,14 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-// Configura o Mercado Pago com o Token
-mp.configure({
-  access_token: process.env.MERCADO_PAGO_TOKEN
+// 💡 NOVO PADRÃO DA VERSÃO 2: Configura o cliente do Mercado Pago corretamente
+const client = new MercadoPagoConfig({
+  accessToken: process.env.MERCADO_PAGO_TOKEN
 });
+const paymentInstance = new Payment(client);
 
 module.exports = async (req, res) => {
-  // Configurações de CORS para conversar perfeitamente com o GitHub Pages
+  // Configurações de CORS para conversar com o GitHub Pages
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', 'https://heidern87.github.io');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -31,39 +32,44 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { jogoId, golsCasa, golsVisita, nome, whatsapp } = req.body;
+    const { juegoId, golsCasa, golsVisita, nome, whatsapp } = req.body;
 
-    if (!jogoId || golsCasa === undefined || golsVisita === undefined || !nome || !whatsapp) {
+    // Ajuste caso a variável venha como jogoId ou juegoId do front-end
+    const idDoJogo = juegoId || req.body.jogoId;
+
+    if (!idDoJogo || golsCasa === undefined || golsVisita === undefined || !nome || !whatsapp) {
       return res.status(400).json({ error: 'Dados insuficientes' });
     }
 
-    // Criar um ID único de e-mail fictício para associar ao Mercado Pago e identificar o pagador no Webhook
     const emailFicticio = `bolao-${Date.now()}@bolao.com`;
 
-    // Configura a requisição de pagamento para o Mercado Pago
+    // 💡 NOVO PADRÃO DA VERSÃO 2: Montagem do objeto de pagamento
     const paymentData = {
-      transaction_amount: 5.00,
-      description: `Palpite Bolão - ${nome}`,
-      payment_method_id: 'pix',
-      payer: {
-        email: emailFicticio,
-        first_name: nome.split(' ')[0],
-        last_name: nome.split(' ').slice(1).join(' ') || 'Silva'
+      body: {
+        transaction_amount: 5.00,
+        description: `Palpite Bolão - ${nome}`,
+        payment_method_id: 'pix',
+        payer: {
+          email: emailFicticio,
+          first_name: nome.split(' ')[0],
+          last_name: nome.split(' ').slice(1).join(' ') || 'Silva'
+        }
       }
     };
 
-    const payment = await mp.payment.create(paymentData);
-    
-    if (!payment.body || !payment.body.point_of_interaction) {
+    // Chamada usando a nova instância da SDK v2
+    const payment = await paymentInstance.create(paymentData);
+
+    if (!payment || !payment.point_of_interaction) {
       throw new Error('Resposta inválida do Mercado Pago');
     }
 
-    const qrCodeBase64 = payment.body.point_of_interaction.transaction_data.qr_code_base64;
-    const copyAndPaste = payment.body.point_of_interaction.transaction_data.qr_code;
+    const qrCodeBase64 = payment.point_of_interaction.transaction_data.qr_code_base64;
+    const copyAndPaste = payment.point_of_interaction.transaction_data.qr_code;
 
-    // Salva o palpite como "provisorio" no banco do Firebase Firestore
+    // Salva o palpite provisório no Firebase
     const novoPalpite = {
-      jogoId,
+      jogoId: idDoJogo,
       golsCasa: parseInt(golsCasa),
       golsVisita: parseInt(golsVisita),
       nome,
@@ -75,7 +81,6 @@ module.exports = async (req, res) => {
 
     await db.collection('palpites').add(novoPalpite);
 
-    // Retorna o sucesso e os códigos Pix para o index.html exibir na tela
     return res.status(200).json({
       success: true,
       qrCodeBase64,
