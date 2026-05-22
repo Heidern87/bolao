@@ -1,10 +1,15 @@
 const { MercadoPagoConfig, Payment } = require('mercadopago');
 const admin = require('firebase-admin');
 
-// Inicializa o Firebase se ainda não foi inicializado
+// Inicializa o Firebase usando as credenciais completas que salvamos na Vercel
 if (!admin.apps.length) {
   admin.initializeApp({
-    projectId: process.env.FIREBASE_PROJECT_ID
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      // Corrige eventuais quebras de linha que a Vercel insere na chave privada
+      privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+    })
   });
 }
 
