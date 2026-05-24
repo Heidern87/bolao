@@ -305,6 +305,9 @@
 
     </div>
 
+    <div id="toast-container"
+        class="fixed top-5 right-5 z-50 flex flex-col gap-3 pointer-events-none max-w-sm w-full px-4 sm:px-0"></div>
+
     <script>
         // Configurações do Firebase com as suas chaves reais
         const firebaseConfig = {
@@ -401,7 +404,7 @@
             const whatsapp = document.getElementById(`whatsapp-${jogoId}`).value.trim();
 
             if (golsCasa === "" || golsVisita === "" || !nome || !whatsapp) {
-                alert("⚠️ Preencha todos os campos!");
+                mostrarAlerta("⚠️ Preencha todos os campos!");
                 return;
             }
 
@@ -438,11 +441,11 @@
                             });
                         });
                 } else {
-                    alert("Erro: " + dados.error);
+                    mostrarAlerta("Erro: " + dados.error);
                     btn.innerText = "Enviar Palpite (R$ 5,00)"; btn.disabled = false;
                 }
             } catch (e) {
-                alert("Erro na conexão.");
+                mostrarAlerta("Erro na conexão.");
                 btn.innerText = "Enviar Palpite (R$ 5,00)"; btn.disabled = false;
             }
         }
@@ -475,7 +478,7 @@
             try {
                 await auth.signInWithEmailAndPassword(email, senha);
                 alternarTela("tela-painel-admin");
-            } catch (e) { alert("Acesso negado! Senha incorreta."); }
+            } catch (e) { mostrarAlerta("Acesso negado! Senha incorreta."); }
         }
 
         function logoutAdmin() { auth.signOut(); alternarTela("tela-jogos"); }
@@ -527,7 +530,7 @@
                 await db.collection("jogos").doc(idJogo).update({
                     status: "encerrado"
                 });
-                alert("Jogo encerrado com sucesso!");
+                mostrarAlerta("Jogo encerrado com sucesso!");
                 carregarJogosAdmin(); // atualiza a tela do admin
             }
         }
@@ -539,7 +542,7 @@
             const dataFechamento = document.getElementById("new-limite").value;
 
             if (!timeCasa || !timeVisita || !dataFechamento) {
-                alert("Preencha todos os campos do confronto!");
+                mostrarAlerta("Preencha todos os campos do confronto!");
                 return;
             }
 
@@ -551,7 +554,7 @@
                 criadoEm: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            alert("Jogo publicado com sucesso no Bolão!");
+            mostrarAlerta("Jogo publicado com sucesso no Bolão!");
             document.getElementById("new-casa").value = "";
             document.getElementById("new-visita").value = "";
             document.getElementById("new-limite").value = "";
@@ -564,7 +567,7 @@
             const divResultados = document.getElementById("lista-ganhadores");
 
             if (gcRaw === "" || gvRaw === "") {
-                alert("Insira o resultado final do jogo!");
+                mostrarAlerta("Insira o resultado final do jogo!");
                 return;
             }
 
@@ -597,11 +600,9 @@
         function copiarPix() {
             const texto = document.getElementById("texto-copia-cola").innerText;
             navigator.clipboard.writeText(texto);
-            alert("Código Pix Copiado!");
+            mostrarAlerta("Código Pix Copiado!");
         }
 
-        // FUNÇÃO QUE CONTROLA O RELÓGIO SEGUNDO A SEGUNDO
-        // FUNÇÃO DO RELÓGIO CORRIGIDA PARA O FUSO HORÁRIO LOCAL
         function iniciarContagemRegressiva(jogoId, dataLimiteStr) {
             const caixaCronometro = document.getElementById(`cronometro-${jogoId}`);
             const btnEnviar = document.getElementById(`btn-enviar-${jogoId}`);
@@ -648,6 +649,47 @@
                     }
                 }
             }, 1000);
+        }
+
+        // Sistema de Notificação Customizada e Elegante
+        function mostrarAlerta(mensagem, tipo = 'sucesso') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            // Define as cores baseadas no tipo de mensagem
+            let bgClass = 'bg-green-600'; // sucesso
+            let icone = '✅';
+
+            if (tipo === 'erro') {
+                bgClass = 'bg-red-600';
+                icone = '❌';
+            } else if (tipo === 'aviso') {
+                bgClass = 'bg-amber-500';
+                icone = '⚠️';
+            }
+
+            // Cria o elemento do toast
+            const toast = document.createElement('div');
+            toast.className = `${bgClass} text-white font-medium px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 transition-all duration-300 ease-in-out transform translate-y-2 opacity-0 pointer-events-auto`;
+            toast.innerHTML = `
+        <span class="text-lg">${icone}</span>
+        <span class="text-sm flex-1">${mensagem}</span>
+    `;
+
+            container.appendChild(toast);
+
+            // Efeito de Entrada (Fade-in e sobe de leve)
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            // Efeito de Saída Automática após 4 segundos
+            setTimeout(() => {
+                toast.classList.add('translate-y-[-10px]', 'opacity-0');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, 4000);
         }
 
         // Inicialização
