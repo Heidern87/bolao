@@ -559,22 +559,27 @@
 
         // Admin: Filtrar e Buscar Ganhadores Direto no Aplicativo
         async function buscarGanhadores() {
-            const gc = document.getElementById("resultado-casa").value;
-            const gv = document.getElementById("resultado-visita").value;
+            const gcRaw = document.getElementById("resultado-casa").value;
+            const gvRaw = document.getElementById("resultado-visita").value;
             const divResultados = document.getElementById("lista-ganhadores");
 
-            if (gc === "" || gv === "") {
+            if (gcRaw === "" || gvRaw === "") {
                 alert("Insira o resultado final do jogo!");
                 return;
             }
 
+            // CORREÇÃO DE TIPAGEM: Converte o texto do input em número inteiro para bater com o Firebase!
+            const gc = parseInt(gcRaw);
+            const gv = parseInt(gvRaw);
+
             divResultados.innerHTML = "Buscando acertadores...";
 
-            // CORRIGIDO: Agora filtra os vencedores buscando pelo status "confirmado" vindo do Pix pago!
+            // Agora a busca vai funcionar perfeitamente número com número!
             const snapshot = await db.collection("palpites")
                 .where("golsCasa", "==", gc)
                 .where("golsVisita", "==", gv)
-                .where("status", "==", "confirmado").get();
+                .where("status", "==", "confirmado")
+                .get();
 
             if (snapshot.empty) {
                 divResultados.innerHTML = "<b style='color:red;'>Ninguém acertou esse placar nesta rodada.</b>";
