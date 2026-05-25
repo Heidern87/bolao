@@ -75,6 +75,11 @@
             display: block;
         }
 
+        /* Força o modal de admin a usar Flexbox para centralizar tudo na tela quando estiver ativo */
+        #tela-login-admin.tela-ativa {
+            display: flex !important;
+        }
+
         /* Cards e Estilos */
         .card-jogo {
             background: var(--card-bg);
@@ -247,14 +252,40 @@
             </div>
         </div>
 
-        <div id="tela-login-admin" class="tela">
-            <div class="card-jogo">
-                <h3 style="margin-bottom: 15px;">Acesso Restrito</h3>
-                <div class="form-user" style="border:none; padding:0;">
-                    <input type="email" id="admin-email" placeholder="E-mail do Administrador">
-                    <input type="password" id="admin-senha" placeholder="Senha">
-                    <button class="btn btn-primary" onclick="loginAdmin()">Entrar no Painel</button>
-                    <button class="btn btn-muted" onclick="voltarParaJogos()">Voltar ao Início</button>
+        <div id="tela-login-admin" class="tela"
+            style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 9999; display: none; align-items: center; justify-content: center;">
+
+            <div style="width: 90%; max-width: 340px; background: #ffffff; padding: 25px 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; border: 1px solid rgba(0,0,0,0.1);"
+                onkeydown="if(event.key === 'Enter') loginAdmin()">
+
+                <div style="color: var(--primary); margin-bottom: 10px; display: flex; justify-content: center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" style="width: 32px; height: 32px;" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
+
+                <h3
+                    style="text-align: center; color: var(--primary); margin-top: 0; margin-bottom: 20px; font-weight: 800; font-size: 1.25rem; tracking-wide;">
+                    ACESSO RESTRITO</h3>
+
+                <input type="email" id="admin-email" placeholder="E-mail do Administrador"
+                    style="width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 14px; border: 1.5px solid #e5e7eb; background: #fff; color: var(--text-main); outline: none; box-sizing: border-box; font-size: 0.95rem;">
+
+                <input type="password" id="admin-senha" placeholder="Digite a senha..." autocomplete="current-password"
+                    style="width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 14px; border: 1.5px solid #e5e7eb; background: #fff; color: var(--text-main); outline: none; box-sizing: border-box; font-size: 0.95rem;">
+
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" onclick="loginAdmin()"
+                        style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 14px; font-weight: bold; cursor: pointer; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                        ENTRAR
+                    </button>
+
+                    <button type="button" onclick="voltarParaJogos()"
+                        style="flex: 1; padding: 12px; background: #e5e7eb; color: var(--text-muted); border: none; border-radius: 14px; font-weight: bold; cursor: pointer; font-size: 0.95rem;">
+                        SAIR
+                    </button>
                 </div>
             </div>
         </div>
@@ -478,7 +509,10 @@
             try {
                 await auth.signInWithEmailAndPassword(email, senha);
                 alternarTela("tela-painel-admin");
-            } catch (e) { mostrarAlerta("Acesso negado! Senha incorreta."); }
+            } catch (e) {
+                // Exibe o balão vermelho de erro na tela
+                mostrarAlerta("Acesso negado! Senha incorreta.", "erro");
+            }
         }
 
         function logoutAdmin() { auth.signOut(); alternarTela("tela-jogos"); }
@@ -526,11 +560,13 @@
 
         // Função mágica que muda o status no Firebase e esconde o jogo dos clientes!
         async function encerrarJogo(idJogo) {
+            // Usando o confirm nativo apenas para segurança (para não encerrar sem querer)
             if (confirm("Tens a certeza que queres encerrar as apostas deste jogo? Ele vai sumir do site dos clientes, mas os dados continuam salvos.")) {
                 await db.collection("jogos").doc(idJogo).update({
                     status: "encerrado"
                 });
-                mostrarAlerta("Jogo encerrado com sucesso!");
+                // Agora sim, exibe o balão verde de sucesso na tela!
+                mostrarAlerta("Jogo encerrado com sucesso!", "sucesso");
                 carregarJogosAdmin(); // atualiza a tela do admin
             }
         }
