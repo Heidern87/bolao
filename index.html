@@ -267,7 +267,7 @@
                 </div>
 
                 <h3
-                    style="text-align: center; color: var(--primary); margin-top: 0; margin-bottom: 20px; font-weight: 800; font-size: 1.25rem; tracking-wide;">
+                    style="text-align: center; color: var(--primary); margin-top: 0; margin-bottom: 20px; font-weight: 800; font-size: 1.25rem; letter-spacing: 1px;">
                     ACESSO RESTRITO</h3>
 
                 <input type="email" id="admin-email" placeholder="E-mail do Administrador"
@@ -408,7 +408,7 @@
                         <div class="form-user">
                             <input type="text" id="nome-${id}" placeholder="Seu nome completo" required>
                             <input type="tel" id="whatsapp-${id}" placeholder="WhatsApp (Apenas números)" required>
-                            <button class="btn btn-primary" id="btn-enviar-${id}" onclick="processarPalpite('${id}', '${j.timeCasa}', '${j.timeVisita}')">Enviar Palpite (R$ 5,00)</button>
+                            <button class="btn btn-primary" id="btn-enviar-${id}" onclick="processarPalpite('${id}', '${j.timeCasa}', '${j.timeVisita}', '${j.dataFechamento}')">Enviar Palpite (R$ 5,00)</button>
                         </div>
                     </div>
                 `;
@@ -428,15 +428,24 @@
         }
 
         // 2. SOLICITAR PIX E ESCUTAR PAGAMENTO REAL-TIME (Webhook Backup)
-        async function processarPalpite(jogoId, timeCasa, timeVisita) {
+        // 2. SOLICITAR PIX E ESCUTAR PAGAMENTO REAL-TIME (Com Jogo e Data salvos)
+        async function processarPalpite(jogoId, timeCasa, timeVisita, dataFechamento) {
             const golsCasa = document.getElementById(`golsCasa-${jogoId}`).value;
             const golsVisita = document.getElementById(`golsVisita-${jogoId}`).value;
             const nome = document.getElementById(`nome-${jogoId}`).value.trim();
             const whatsapp = document.getElementById(`whatsapp-${jogoId}`).value.trim();
 
             if (golsCasa === "" || golsVisita === "" || !nome || !whatsapp) {
-                mostrarAlerta("⚠️ Preencha todos os campos!");
+                mostrarAlerta("⚠️ Preencha todos os campos!", "aviso");
                 return;
+            }
+
+            // Formata a data de YYYY-MM-DDTHH:MM para o padrão brasileiro DD/MM/AAAA às HH:MM
+            let dataFormatada = "Data não definida";
+            if (dataFechamento) {
+                const [data, hora] = dataFechamento.split("T");
+                const [ano, mes, dia] = data.split("-");
+                dataFormatada = `${dia}/${mes}/${ano} às ${hora}`;
             }
 
             const btn = document.querySelector(`#card-${jogoId} button`);
@@ -445,7 +454,15 @@
                 const resposta = await fetch(`${URL_VERCEL}/api/pix`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ jogoId, golsCasa, golsVisita, nome, whatsapp })
+                    body: JSON.stringify({
+                        jogoId,
+                        golsCasa,
+                        golsVisita,
+                        nome,
+                        whatsapp,
+                        confronto: `${timeCasa} x ${timeVisita}`,
+                        dataJogo: dataFormatada // Adiciona a data no envio do bilhete
+                    })
                 });
                 const dados = await resposta.json();
 
@@ -454,17 +471,14 @@
                     document.getElementById("qr-code").src = `data:image/jpeg;base64,${dados.qrCodeBase64}`;
                     document.getElementById("texto-copia-cola").innerText = dados.copyAndPaste;
 
-                    // ESCUTA EM TEMPO REAL: Se o status virar "confirmado", joga o cliente para a tela de bilhete!
                     if (listenerPalpitePago) listenerPalpitePago(); // limpa anterior
 
-                    // Procuramos o palpite recém criado do usuário no Firebase
                     listenerPalpitePago = db.collection("palpites")
                         .where("jogoId", "==", jogoId)
                         .where("whatsapp", "==", whatsapp)
                         .orderBy("criadoEm", "desc").limit(1)
                         .onSnapshot((snapshot) => {
                             snapshot.forEach((doc) => {
-                                // CORRIGIDO: Monitorando o status "confirmado" enviado pela API do Mercado Pago
                                 if (doc.data().status === "confirmado") {
                                     listenerPalpitePago(); // Desliga a escuta
                                     exibirComprovante(doc.id, doc.data(), timeCasa, timeVisita);
@@ -472,11 +486,11 @@
                             });
                         });
                 } else {
-                    mostrarAlerta("Erro: " + dados.error);
+                    mostrarAlerta("Erro: " + dados.error, "erro");
                     btn.innerText = "Enviar Palpite (R$ 5,00)"; btn.disabled = false;
                 }
             } catch (e) {
-                mostrarAlerta("Erro na conexão.");
+                mostrarAlerta("Erro na conexão.", "erro");
                 btn.innerText = "Enviar Palpite (R$ 5,00)"; btn.disabled = false;
             }
         }
@@ -560,15 +574,14 @@
 
         // Função mágica que muda o status no Firebase e esconde o jogo dos clientes!
         async function encerrarJogo(idJogo) {
-            // Usando o confirm nativo apenas para segurança (para não encerrar sem querer)
-            if (confirm("Tens a certeza que queres encerrar as apostas deste jogo? Ele vai sumir do site dos clientes, mas os dados continuam salvos.")) {
-                await db.collection("jogos").doc(idJogo).update({
-                    status: "encerrado"
-                });
-                // Agora sim, exibe o balão verde de sucesso na tela!
-                mostrarAlerta("Jogo encerrado com sucesso!", "sucesso");
-                carregarJogosAdmin(); // atualiza a tela do admin
-            }
+            // Removeu o confirm nativo para encerrar direto sem travar a tela
+            await db.collection("jogos").doc(idJogo).update({
+                status: "encerrado"
+            });
+
+            // Agora sim, exibe o balão verde de sucesso na tela!
+            mostrarAlerta("Jogo encerrado com sucesso!", "sucesso");
+            carregarJogosAdmin(); // atualiza a tela do admin
         }
 
         // Admin: Cadastrar Nova Partida com Horário de Fechamento
@@ -603,7 +616,7 @@
             const divResultados = document.getElementById("lista-ganhadores");
 
             if (gcRaw === "" || gvRaw === "") {
-                mostrarAlerta("Insira o resultado final do jogo!");
+                mostrarAlerta("Insira o resultado final do jogo!", "aviso");
                 return;
             }
 
@@ -628,7 +641,19 @@
             let html = `<b style='color:green;'>🎉 Encontrado(s) ${snapshot.size} ganhador(es):</b><br><br>`;
             snapshot.forEach(doc => {
                 const p = doc.data();
-                html += `👤 <b>${p.nome}</b><br>📞 WhatsApp: ${p.whatsapp}<br>🎫 Bilhete: #${doc.id}<br><hr style='margin:5px 0; opacity:0.3;'>`;
+
+                // Se o palpite tiver confronto e dataJogo salvos, mostra eles. Se não tiver (jogos antigos), avisa.
+                const nomeConfronto = p.confronto ? p.confronto : "Confronto não identificado";
+                const dataDoJogo = p.dataJogo ? p.dataJogo : "Data não registrada";
+
+                html += `
+                    👤 <b>${p.nome}</b><br>
+                    📞 WhatsApp: ${p.whatsapp}<br>
+                    🎫 Bilhete: #${doc.id}<br>
+                    ⚽ Jogo: <span style="color: #1e3a8a; font-weight: bold;">${nomeConfronto}</span><br>
+                    📅 Data: <span style="color: #4b5563; font-weight: 500;">${dataDoJogo}</span><br>
+                    <hr style='margin:10px 0; opacity:0.3;'>
+                `;
             });
             divResultados.innerHTML = html;
         }
